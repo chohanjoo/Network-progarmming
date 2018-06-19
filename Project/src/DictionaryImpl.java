@@ -37,14 +37,13 @@ public class DictionaryImpl extends UnicastRemoteObject implements Dictionary {
 	public void setDictionary() throws RemoteException {
 		// TODO Auto-generated method stub
 		try {
-			File file = new File("C:\\Users\\한주\\eclipse-workspace\\netword_project\\dictionary.txt");
-			FileReader filereader = new FileReader(file);
+			File file = new File("C:\\Users\\한주\\eclipse-workspace\\netword_project\\wordslist.txt");
 
 			BufferedReader bufReader = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
 
 			String line = "";
 
-			while ((line = bufReader.readLine()) != null)
+			while ((line = bufReader.readLine()) != null) 
 				dictionary.add(line);
 
 			bufReader.close();

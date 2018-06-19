@@ -2,11 +2,10 @@ import java.net.*;
 import java.rmi.Naming;
 import java.security.KeyStore;
 import java.util.ArrayList;
-import java.util.regex.PatternSyntaxException;
+import java.util.Scanner;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
@@ -14,308 +13,382 @@ import javax.net.ssl.SSLSocket;
 import java.io.*;
 
 public class WordChainingServer implements Runnable {
-	final static int PLAYERNUM = 2;
-	private WordChaingServerRunnable clients[] = new WordChaingServerRunnable[PLAYERNUM];
-	static String wordList = "";
-	static ArrayList<String> words = new ArrayList<String>();
-	public int clientCount = 0;
 
-	private int ePort = -1;
-	final String runRoot = "C://Users//ÇÑÁÖ//eclipse-workspace//netword_project//bin//";
-	SSLServerSocketFactory sslServerSocketFactory = null;
-	SSLServerSocket sslServerSocket = null;
-	SSLSocket sslSocket = null;
-	private KeyStore keyStore;
-	private KeyManagerFactory keyManagerFactory;
-	private SSLContext sslContext;
+   final static int PLAYERNUM = 2;
+   private WordChaingServerRunnable clients[] = new WordChaingServerRunnable[PLAYERNUM];
+   public int clientCount = 0;
 
-	String ksName = runRoot + ".keystore/WordChainingServerKey";
+   static String wordList = "";
+   static ArrayList<String> words = new ArrayList<String>();
 
-	char keyStorePass[] = "000000".toCharArray();
-	char keyPass[] = "000000".toCharArray();
+   private int ePort = -1;
+   final String runRoot = "C:\\Users\\ÇÑÁÖ\\eclipse-workspace\\netword_project\\bin\\";
+   SSLServerSocketFactory sslServerSocketFactory = null;
+   SSLServerSocket sslServerSocket = null;
+   SSLSocket sslSocket = null;
+   private KeyStore keyStore;
+   private KeyManagerFactory keyManagerFactory;
+   private SSLContext sslContext;
+   static InetAddress inetaddr = null;
 
-	public WordChainingServer(int port) {
-		this.ePort = port;
+   String ksName = runRoot + ".keystore/SSLSocketServerKey";
+   char keyStorePass[];
+   char keyPass[];
 
-	}
+   public WordChainingServer(int port) {
+      this.ePort = port;
 
-	public void run() {
+      try {
+         File file = new File("C:\\Users\\ÇÑÁÖ\\eclipse-workspace\\netword_project\\password.txt");
+         Scanner sc = new Scanner(file);
+         keyStorePass = keyPass = sc.nextLine().toCharArray();
+         sc.close();
+      } catch (FileNotFoundException fe) {
+         fe.printStackTrace();
+      }
+   }
 
-		try {
-			keyStore = KeyStore.getInstance("JKS");
-			keyStore.load(new FileInputStream(ksName), keyStorePass);
+   public void run() {
 
-			keyManagerFactory = KeyManagerFactory.getInstance("SunX509");
-			keyManagerFactory.init(keyStore, keyPass);
+      try {
+         inetaddr = InetAddress.getLocalHost();
 
-			sslContext = SSLContext.getInstance("TLS");
-			sslContext.init(keyManagerFactory.getKeyManagers(), null, null);
-			/* SSLServerSocket */
-			sslServerSocketFactory = sslContext.getServerSocketFactory();
-			sslServerSocket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(ePort);
+         keyStore = KeyStore.getInstance("JKS");
+         keyStore.load(new FileInputStream(ksName), keyStorePass);
 
-			// serverSocket = new ServerSocket(ePort);
-			System.out.println("Server started: socket created on " + ePort);
+         keyManagerFactory = KeyManagerFactory.getInstance("SunX509");
+         keyManagerFactory.init(keyStore, keyPass);
 
-			Dictionary dic = new DictionaryImpl();
-			Naming.rebind("rmi://" + "localhost" + ":1099/" + "WordChaining", dic);
+         sslContext = SSLContext.getInstance("TLS");
+         sslContext.init(keyManagerFactory.getKeyManagers(), null, null);
+         /* SSLServerSocket */
+         sslServerSocketFactory = sslContext.getServerSocketFactory();
+         sslServerSocket = (SSLServerSocket) sslServerSocketFactory.createServerSocket(ePort);
 
-			while (true) {
-				addClient(sslServerSocket);
-			}
+         // serverSocket = new ServerSocket(ePort);
+         System.out.println("Server started: socket created on " + ePort);
 
-		} catch (BindException b) {
-			System.out.println("Can't bind on: " + ePort);
-		} catch (IOException i) {
-			System.out.println(i);
-		} catch (Exception e) {
-			System.out.println(e);
-		} finally {
-			try {
-				if (sslServerSocket != null)
-					sslServerSocket.close();
-			} catch (IOException i) {
-				System.out.println(i);
-			}
-		}
-	}
+         Dictionary dic = new DictionaryImpl();
+         Naming.rebind("rmi://" + inetaddr.getHostAddress() + ":1099/" + "WordChaining", dic);
 
-	public int whoClient(int clientID) {
-		for (int i = 0; i < clientCount; i++)
-			if (clients[i].getClientID() == clientID)
-				return i;
-		return -1;
-	}
+         while (true) {
+            addClient(sslServerSocket);
+         }
 
-	public void putClient(String msg) {
-		for (int i = 0; i < clientCount; i++) {
-			clients[i].out.println(msg);
-		}
-	}
+      } catch (BindException b) {
+         System.out.println("Can't bind on: " + ePort);
+      } catch (IOException i) {
+         System.out.println(i);
+      } catch (Exception e) {
+         System.out.println(e);
+      } finally {
+         try {
+            if (sslServerSocket != null)
+               sslServerSocket.close();
+         } catch (IOException i) {
+            System.out.println(i);
+         }
+      }
+   }
 
-	public void putClient(int clientID, String msg) {
-		for (int i = 0; i < clientCount; i++)
-			if (clients[i].getClientID() == clientID)
-				clients[i].out.println(msg);
+   public int whoClient(int clientID) {
+      for (int i = 0; i < clientCount; i++)
+         if (clients[i].getClientID() == clientID)
+            return i;
+      return -1;
+   }
 
-	}
+   // Å¬¶óÀÌ¾ðÆ® ÀüÃ¼ ¸Þ½ÃÁö Àü´Þ
+   public void putClient(String msg) {
+      for (int i = 0; i < clientCount; i++) {
+         clients[i].out.println(msg);
+      }
+   }
 
-	public void putClient(int clientID, String inputLine, String wordList) {
-		for (int i = 0; i < clientCount; i++)
-			if (clients[i].getClientID() == clientID) {
-				System.out.println("ÀÛ¼ºÀÚ: " + clientID);
-			} else {
-				System.out.println("¸Þ½ÃÁö ¹Þ´Â »ç¶÷: " + clients[i].getClientID());
-				if (this.getPlayerState()) {
-					clients[i].out.println(clientID + "´ÔÀÌ ÀÔ·ÂÇÑ ´Ü¾î : " + inputLine);
-					clients[i].out.println("ÇöÀç±îÁöÀÇ ´Ü¾î : " + wordList);
-				}
-			}
-	}
+   // ÇØ´ç Å¬¶óÀÌ¾ðÆ®¿¡°Ô¸¸ ¸Þ½ÃÁö Àü´Þ
+   public void putClient(int clientID, String msg) {
+      for (int i = 0; i < clientCount; i++)
+         if (clients[i].getClientID() == clientID)
+            clients[i].out.println(msg);
+   }
 
-	public void addClient(SSLServerSocket sslServerSocket) {
-		SSLSocket clientSocket = null;
+   // ³¡¸»ÀÕ±â Á¤º¸ Àü´Þ ¹× Ãâ·Â
+   public void putClient(int clientID, String inputLine, String wordList) {
+      for (int i = 0; i < clientCount; i++) {
+         if (clients[i].getClientID() == clientID) {
+            System.out.println("ÀÛ¼ºÀÚ: " + clientID);
+         } else {
+            System.out.println("¸Þ½ÃÁö ¹Þ´Â »ç¶÷: " + clients[i].getClientID());
+            if (this.getPlayerState()) {
+            	clients[i].out.println("********************************************************************************************");
+               clients[i].out.println("* [ÇÃ·¹ÀÌ¾î " + clientID + "] ´ÔÀÌ ÀÔ·ÂÇÑ ´Ü¾î : " + inputLine);
+               clients[i].out.println("* ÇöÀç±îÁöÀÇ ´Ü¾î : " + wordList);
+               clients[i].out.println("********************************************************************************************");
+            }
+         }
+      }
+   }
 
-		if (clientCount < clients.length) {
-			try {
-				clientSocket = (SSLSocket) sslServerSocket.accept();
-				clientSocket.setSoTimeout(40000); // 1000/sec
-			} catch (IOException i) {
-				System.out.println("Accept() fail: " + i);
-			}
-			clients[clientCount] = new WordChaingServerRunnable(this, clientSocket);
-			new Thread(clients[clientCount]).start();
-			clientCount++;
-			System.out.println("Client connected: " + clientSocket.getPort() + ", CurrentClient: " + clientCount);
-		} else {
-			try {
-				SSLSocket dummySocket = (SSLSocket) sslServerSocket.accept();
-				WordChaingServerRunnable dummyRunnable = new WordChaingServerRunnable(this, dummySocket);
-				new Thread(dummyRunnable);
-				dummyRunnable.out.println(dummySocket.getPort() + " < Sorry maximum user connected now");
-				System.out.println("Client refused: maximum connection " + clients.length + " reached.");
-				dummyRunnable.close();
-			} catch (IOException i) {
-				System.out.println(i);
-			}
-		}
-	}
+   public void addClient(SSLServerSocket sslServerSocket) {
+      SSLSocket clientSocket = null;
 
-	/**
-	 * ¸ðµç ÇÃ·¹ÀÌ¾î°¡ READY»óÅÂÀÎÁö ÆÇ´ÜÇÏ´Â ÇÔ¼ö
-	 * 
-	 * @return true: ¸ðµç ÇÃ·¹ÀÌ¾î READY ´©¸¥ °æ¿ì / false: ÇÑ¸íÀÌ¶óµµ READY ¾È´©¸¥ °æ¿ì
-	 */
-	public boolean getPlayerState() {
-		int readyCount = 0;
+      if (clientCount < clients.length) {
+         try {
+            clientSocket = (SSLSocket) sslServerSocket.accept();
+            clientSocket.setSoTimeout(40000); // 1000/sec
+         } catch (IOException i) {
+            System.out.println("Accept() fail: " + i);
+         }
+         clients[clientCount] = new WordChaingServerRunnable(this, clientSocket, clientCount);
+         new Thread(clients[clientCount]).start();
+         clientCount++;
+         System.out.println("Client connected: " + clientSocket.getPort() + ", CurrentClient: " + clientCount);
+      } else {
+         try {
+            SSLSocket dummySocket = (SSLSocket) sslServerSocket.accept();
+            WordChaingServerRunnable dummyRunnable = new WordChaingServerRunnable(this, dummySocket, -1);
+            new Thread(dummyRunnable);
+            dummyRunnable.out.println(dummySocket.getPort() + " < Sorry maximum user connected now");
+            System.out.println("Client refused: maximum connection " + clients.length + " reached.");
+            dummyRunnable.close();
+         } catch (IOException i) {
+            System.out.println(i);
+         }
+      }
+   }
 
-		for (int i = 0; i < clientCount; i++) {
-			if (clients[i].isReady == true)
-				readyCount++;
-		}
+   /**
+    * ¸ðµç ÇÃ·¹ÀÌ¾î°¡ READY»óÅÂÀÎÁö ÆÇ´ÜÇÏ´Â ÇÔ¼ö
+    * 
+    * @return true: ¸ðµç ÇÃ·¹ÀÌ¾î READY ´©¸¥ °æ¿ì / false: ÇÑ¸íÀÌ¶óµµ READY ¾È´©¸¥ °æ¿ì
+    */
+   public boolean getPlayerState() {
+      int readyCount = 0;
 
-		if (readyCount == PLAYERNUM)
-			return true;
-		else
-			return false;
-	}
+      for (int i = 0; i < clientCount; i++) {
+         if (clients[i].isReady == true)
+            readyCount++;
+      }
 
-	public synchronized void delClient(int clientID) {
-		int pos = whoClient(clientID);
-		WordChaingServerRunnable endClient = null;
-		if (pos >= 0) {
-			endClient = clients[pos];
-			if (pos < clientCount - 1)
-				for (int i = pos + 1; i < clientCount; i++)
-					clients[i - 1] = clients[i];
-			clientCount--;
-			System.out
-					.println("Client removed: " + clientID + " at clients[" + pos + "], CurrentClient: " + clientCount);
-			endClient.close();
-		}
-	}
+      if (readyCount == PLAYERNUM)
+         return true;
+      else
+         return false;
+   }
 
-	public static void main(String[] args) throws IOException {
+   // ¸ðµç Å¬¶óÀÌ¾ðÆ® »èÁ¦
+   public synchronized void delAllClient() {
+      for (WordChaingServerRunnable r : clients) {
+         try {
+            r.NumOfWrongWord = 0;
+            r.clientSocket.close();
+            System.out.println("Client removed: " + r.clientID + ",CurrentClient: " + clientCount);
+         } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+         }
+         clientCount--;
+      }
+      clients = new WordChaingServerRunnable[PLAYERNUM];
+      clientCount = 0;
+      wordList = "";
+      words = new ArrayList<String>();
+      System.out.println("All Client removed");
+   }
 
-		if (args.length != 1) {
-			System.out.println("Usage: Classname ServerPort");
-			System.exit(1);
-		}
-		int sPort = Integer.parseInt(args[0]);
+   // ÇØ´ç Å¬¶óÀÌ¾ðÆ® »èÁ¦
+   public synchronized void delClient(int clientID) {
+      int pos = whoClient(clientID);
+      WordChaingServerRunnable endClient = null;
+      if (pos >= 0) {
+         endClient = clients[pos];
+         if (pos < clientCount - 1)
+            for (int i = pos + 1; i < clientCount; i++)
+               clients[i - 1] = clients[i];
+         clientCount--;
+         System.out
+               .println("Client removed: " + clientID + " at clients[" + pos + "], CurrentClient: " + clientCount);
+         endClient.close();
+      }
+   }
 
-		new Thread(new WordChainingServer(sPort)).start();
+   // Ã³À½ µé¾î¿Â Å¬¶óÀÌ¾ðÆ®ºÎÅÍ ½ÃÀÛÇÏµµ·Ï ¼³Á¤ÇÏ´Â ÇÔ¼ö
+   public void setFirstTurn() {
+      clients[0].turn = true;
+      putClient(clients[0].clientID, "\n´ç½Å Â÷·ÊÀÔ´Ï´Ù.\n>>");
+   }
 
-	}
+   // Å¬¶óÀÌ¾ðÆ® ¼ø¼­´ë·Î ÅÏÀ» ³Ñ°ÜÁÖ´Â ÇÔ¼ö
+   public void changeTurn(int clientID) {
+         int index = -1;
+         for (int i = 0; i < clientCount; i++)
+            if (clients[i].getClientID() == clientID) {
+               index = i;
+               clients[i].turn = false;
+               break;
+            }
+         if (index + 1 == clientCount) {
+            clients[0].turn = true;
+            putClient(clients[0].clientID, "\n´ç½Å Â÷·ÊÀÔ´Ï´Ù.\n>>");
+         } else if (index + 1 < clientCount) {
+            clients[index + 1].turn = true;
+            putClient(clients[index + 1].clientID, "\n´ç½Å Â÷·ÊÀÔ´Ï´Ù.\n>>");
+         }
+      }
 
-	public void changeTurn(int clientID) {
-		int index = -1;
-		for (int i = 0; i < clientCount; i++)
-			if (clients[i].getClientID() == clientID) {
-				index = i;
-				clients[i].turn = false;
-			} else if (index + 1 == clientCount) {
-				clients[0].turn = true;
-			} else if (index + 1 < clientCount) {
-				clients[index + 1].turn = true;
-			}
-	}
+   public static void main(String[] args) throws IOException {
+
+      if (args.length != 1) {
+         System.out.println("Usage: Classname ServerPort");
+         System.exit(1);
+      }
+      int sPort = Integer.parseInt(args[0]);
+
+      new Thread(new WordChainingServer(sPort)).start();
+   }
 }
 
 class WordChaingServerRunnable implements Runnable {
-	protected WordChainingServer chatServer = null;
-	protected SSLSocket clientSocket = null;
-	protected PrintWriter out = null;
-	protected BufferedReader in = null;
-	public int clientID = -1;
-	public boolean isReady = false;
-	public boolean isGameStarted = false;
-	public boolean turn = true;
+   protected WordChainingServer chatServer = null;
+   protected SSLSocket clientSocket = null;
+   protected PrintWriter out = null;
+   protected BufferedReader in = null;
+   public int clientID = -1;
+   public int NumOfWrongWord = 0;
+   public boolean isReady = false;
+   public boolean isGameStarted = false;
+   public boolean turn = false;
 
-	public WordChaingServerRunnable(WordChainingServer server, SSLSocket socket) {
-		this.chatServer = server;
-		this.clientSocket = socket;
-		clientID = clientSocket.getPort();
-		try {
-			out = new PrintWriter(clientSocket.getOutputStream(), true);
-			in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-		} catch (IOException e) {
-		}
-	}
+   public WordChaingServerRunnable(WordChainingServer server, SSLSocket socket, int clientCount) {
+      this.chatServer = server;
+      this.clientSocket = socket;
+      clientID = clientCount;
+      try {
+         out = new PrintWriter(clientSocket.getOutputStream(), true);
+         in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+      } catch (IOException e) {
+      }
+   }
 
-	public void run() {
-		try {
-			String inputLine;
-			final String readyMsg = "´ÔÀÌ READY¸¦ ´­·¶½À´Ï´Ù.";
-			final String unReadyMsg = "´ÔÀÌ UNREADY¸¦ ´­·¶½À´Ï´Ù.";
-			final String startMsg = "³¡¸»ÀÕ±â °ÔÀÓÀ» ½ÃÀÛÇÕ´Ï´Ù.";
-			final String terminateMsg = "´ÔÀÌ °ÔÀÓÀ» Á¾·áÇß½À´Ï´Ù.";
-			String lastWord = "";
+   public void run() {
+      try {
+         String inputLine;
+         final String readyMsg = "´ÔÀÌ READY¸¦ ´­·¶½À´Ï´Ù.";
+         final String unReadyMsg = "´ÔÀÌ UNREADY¸¦ ´­·¶½À´Ï´Ù.";
+         final String startMsg = "³¡¸»ÀÕ±â °ÔÀÓÀ» ½ÃÀÛÇÕ´Ï´Ù.";
+         final String terminateMsg = "´ÔÀÌ °ÔÀÓÀ» Á¾·áÇß½À´Ï´Ù.";
+         final String unPreparedMsg = "´Ô READY¸¦ ´©¸£¼Å¾ß °ÔÀÓÀÌ ½ÃÀÛµË´Ï´Ù.";
+         final String winMsg = "´ÔÀÌ ÀÌ°å½À´Ï´Ù.";
+         final String loseMsg = "´ÔÀÌ Á³½À´Ï´Ù.";
+         final String welcomeMsg = "´ÔÀÌ °ÔÀÓ¿¡ ÀÔÀåÇÏ¼Ì½À´Ï´Ù. (Type Message \"Bye.\" to leave)\n";
+         String lastWord = "";
 
-			while ((inputLine = in.readLine()) != null) {
-				if (inputLine.equalsIgnoreCase("Bye.")) {
-					chatServer.putClient(getClientID() + terminateMsg);
-					chatServer.delClient(getClientID());
-					break;
-				}
+         while ((inputLine = in.readLine()) != null) {
+            
+            if (inputLine.equals("WELCOME")) {
+               chatServer.putClient("[ÇÃ·¹ÀÌ¾î " + clientID + "] " + welcomeMsg);
+               continue;
+            }
 
-				if (inputLine.equalsIgnoreCase("READY")) {
-					this.isReady = !this.isReady;
-					if (this.isReady == true)
-						chatServer.putClient(getClientID() + readyMsg);
-					else
-						chatServer.putClient(getClientID() + unReadyMsg);
-				}
+            // »ç¿ëÀÚ°¡ Bye. ¸¦ ÀÔ·ÂÇÏ¿© Á¾·áÇÒ °æ¿ì
+            if (inputLine.equals("BYE")) {
+               isReady = false;
+               chatServer.putClient("[ÇÃ·¹ÀÌ¾î " + getClientID()  + "] " + terminateMsg);
+               chatServer.delAllClient();
+               // chatServer.delClient(getClientID());
+               break;
+            }
 
-				if (chatServer.getPlayerState()) {
-					/**
-					 * ¸¶Áö¸· PLAYER°¡ "READY"¸¦ ÀÔ·ÂÇÑ °æ¿ì wordList¿¡ "READY"¹®ÀÚ°¡ µé¾î°¡´Â °ÍÀ» ¸·±â À§ÇØ continue»ç¿ë
-					 * (...Á¤±ÔÇ¥Çö½ÄÀ¸·Î Á» ´õ ±ò²ûÇÏ°Ô ¹Ù²Ü ¼ö ÀÖÁö ¾ÊÀ»±î...)
-					 */
-					if (inputLine.equalsIgnoreCase("READY")) {
-						isGameStarted = true;
-						chatServer.putClient(startMsg);
-						continue;
-					}
+            // »ç¿ëÀÚ°¡ READY¸¦ ´©¸¥ °æ¿ì
+            if (inputLine.equals("READY")) {
+               this.isReady = !this.isReady;
+               if (this.isReady == true)
+                  chatServer.putClient("[ÇÃ·¹ÀÌ¾î " + getClientID()  + "] "+ readyMsg);
+               else
+                  chatServer.putClient("[ÇÃ·¹ÀÌ¾î " + getClientID()  + "] "+ unReadyMsg);
+            }
 
-					if (this.turn) { // PLAYER ÅÏÀÏ ¶§¸¸ ´Ü¾î ÀÔ·ÂÀÌ µÇµµ·Ï
-						if (!WordChainingServer.words.isEmpty() && chackWord(inputLine)) { // ÀÔ·ÂµÈ ´Ü¾î°¡ Ã¹ ´Ü¾î°¡ ¾Æ´Ò ¶§
-							lastWord = WordChainingServer.words.get(WordChainingServer.words.size() - 1);
-							if (lastWord.charAt(lastWord.length() - 1) == inputLine.charAt(0)) {
-								WordChainingServer.words.add(inputLine);
-								WordChainingServer.wordList += inputLine + "->";
-								chatServer.putClient(getClientID(), inputLine, WordChainingServer.wordList);
-								chatServer.changeTurn(getClientID());
-							} else
-								chatServer.putClient(getClientID(), "Àß¸øµÈ ´Ü¾î¸¦ ÀÔ·ÂÇÏ¼Ì½À´Ï´Ù.\n´Ù½ÃÀÔ·ÂÇØÁÖ¼¼¿ä.");
+            // »ç¿ëÀÚ°¡ »çÀü¿¡ µî·ÏµÈ ´Ü¾î¸¦ ÀÔ·ÂÇÏÁö ¾ÊÀº °æ¿ì
+            if (inputLine.equals("WRONG") && this.turn) {
+               if (chatServer.getPlayerState()) {
+                  this.NumOfWrongWord++;
+                  chatServer.putClient(this.getClientID(), "»çÀü¿¡ µî·ÏµÈ ´Ü¾î°¡ ¾Æ´Õ´Ï´Ù.");
+               } else {
+                  chatServer.putClient(this.getClientID(), this.getClientID() + unPreparedMsg);
+               }
 
-						} else { // Ã¹ ´Ü¾î°¡ ÀÔ·ÂµÉ ¶§
-							if (chackWord(inputLine)) {
-								WordChainingServer.words.add(inputLine);
-								WordChainingServer.wordList += inputLine + "->";
-								chatServer.putClient(getClientID(), inputLine, WordChainingServer.wordList);
-								chatServer.changeTurn(getClientID());
-							} else
-								chatServer.putClient(getClientID(), "Àß¸øµÈ ´Ü¾î¸¦ ÀÔ·ÂÇÏ¼Ì½À´Ï´Ù.\n´Ù½ÃÀÔ·ÂÇØÁÖ¼¼¿ä.");
-						}
+               if (this.NumOfWrongWord >= 3) {
+                  chatServer.putClient("[ÇÃ·¹ÀÌ¾î " + this.getClientID() + "] " + loseMsg);
+                  chatServer.delAllClient();
+                  break;
+               }
+            }
 
-					}
-				}
-			}
-		} catch (SocketTimeoutException ste) {
-			System.out.println("Socket timeout occurred, force close() : " + getClientID());
-			chatServer.delClient(getClientID());
-		} catch (IOException e) {
-			chatServer.delClient(getClientID());
-		}
-	}
+            else if (chatServer.getPlayerState()) {
+               // ¸¶Áö¸· PLAYER°¡ "READY"¸¦ ÀÔ·ÂÇÑ °æ¿ì wordList¿¡ "READY"¹®ÀÚ°¡ µé¾î°¡´Â °ÍÀ» ¸·±â À§ÇØ continue»ç¿ë
+               if (inputLine.equals("READY")) {
+                  isGameStarted = true;
+                  chatServer.putClient("\n--------------------------------");
+                  chatServer.putClient("- " + startMsg + " -");
+                  chatServer.putClient("--------------------------------");
+                  chatServer.setFirstTurn();
+                  continue;
+               }
 
-	public int getClientID() {
-		return clientID;
-	}
+               if (this.turn) { // PLAYER ÅÏÀÏ ¶§¸¸ ´Ü¾î ÀÔ·ÂÀÌ µÇµµ·Ï
+                  if (!WordChainingServer.words.isEmpty()) { // ÀÔ·ÂµÈ ´Ü¾î°¡ Ã¹ ´Ü¾î°¡ ¾Æ´Ò ¶§
 
-	public void close() {
-		try {
-			if (in != null)
-				in.close();
-			if (out != null)
-				out.close();
-			if (clientSocket != null)
-				clientSocket.close();
-		} catch (IOException i) {
-		}
-	}
+                     lastWord = WordChainingServer.words.get(WordChainingServer.words.size() - 1);
+                     boolean double_check = true;
+                     for(int k=0;k<WordChainingServer.words.size();++k)
+                    	 if(WordChainingServer.words.get(k).compareTo(inputLine)==0)
+                    		 double_check = false;
 
-	public boolean chackWord(String word) {
-		if (word.contains(" "))
-			return false;
+                     if (lastWord.charAt(lastWord.length() - 1) == inputLine.charAt(0) && double_check) {
+                        WordChainingServer.words.add(inputLine);
+                        WordChainingServer.wordList += inputLine + " -> ";
+                        chatServer.putClient(getClientID(), inputLine, WordChainingServer.wordList);
+                        chatServer.changeTurn(getClientID());
+                     } else {
+                        this.NumOfWrongWord++;
+                        chatServer.putClient(this.getClientID(), "Æ²¸° ´Ü¾îÀÌ°Å³ª ÀÌ¹Ì ÀÔ·ÂÇÑ ´Ü¾îÀÔ´Ï´Ù.");
+                     }
+                     
+                      if (this.NumOfWrongWord >= 3) {
+                                 chatServer.putClient("[ÇÃ·¹ÀÌ¾î " + getClientID() +"] "+ loseMsg);
+                                 chatServer.delAllClient();
+                                 break;
+                              }
+                  } else { // Ã¹ ´Ü¾î°¡ ÀÔ·ÂµÉ ¶§
+                     WordChainingServer.words.add(inputLine);
+                     WordChainingServer.wordList += inputLine + " -> ";
+                     chatServer.putClient(getClientID(), inputLine, WordChainingServer.wordList);
+                     chatServer.changeTurn(getClientID());
+                  }
+               }
+            }
+         }
+      } catch (SocketTimeoutException ste) {
+         System.out.println("Socket timeout occurred, force close() : " + getClientID());
+         chatServer.delClient(getClientID());
+      } catch (IOException e) {
+         chatServer.delClient(getClientID());
+      }
+   }
 
-		try {
-			if (!word.matches("^[¤¡-¤¾ ¤¿-¤Ó °¡-ÆR]*$"))
-				return false;
-		} catch (PatternSyntaxException e) {
-			System.err.println("An Exception Occured");
-			e.printStackTrace();
-		}
-		return true;
-	}
+   public int getClientID() {
+      return clientID;
+   }
+
+   public void close() {
+      try {
+         if (in != null)
+            in.close();
+         if (out != null)
+            out.close();
+         if (clientSocket != null)
+            clientSocket.close();
+      } catch (IOException i) {
+      }
+   }
 }
